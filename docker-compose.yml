@@ -1,0 +1,74 @@
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  backend:
+    build: ./backend
+    ports:
+      - "4200:5000"
+    environment:
+      - FLASK_APP=src/app.py
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://admin:prime@db:5432/prime_calculator
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=CHANGE_ME
+    depends_on:
+      - db
+      - redis
+
+  runner-1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.runner
+    environment:
+      - DATABASE_URL=postgresql://admin:prime@db:5432/prime_calculator
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app
+      - DRAMATIQ_PROCESSES=1
+      - DRAMATIQ_THREADS=1
+    depends_on:
+      - backend
+      - redis
+      - db
+
+  runner-2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.runner
+    environment:
+      - DATABASE_URL=postgresql://admin:prime@db:5432/prime_calculator
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app
+      - DRAMATIQ_PROCESSES=1
+      - DRAMATIQ_THREADS=1
+    depends_on:
+      - backend
+      - redis
+      - db
+
+  db:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=prime
+      - POSTGRES_DB=prime_calculator
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
